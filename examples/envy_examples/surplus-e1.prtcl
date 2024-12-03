@@ -1,0 +1,11 @@
+let ck = cake in
+let m1 = markw (1, read ck, 499 / 500) in
+ let m2 = markw (2, read ck, 1 / 2) in
+    if m1 >= m2 then
+        let (i1, i2) = divide (ck, m2) in
+        let (i3, i4) = divide (i2, m1) in
+        (piece i4, piece i1)
+    else
+        let (i1, i2) = divide (ck, m1) in
+        let (i3, i4) = divide (i2, m2) in
+        (piece i1, piece i4)

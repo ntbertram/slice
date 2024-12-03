@@ -1,0 +1,23 @@
+let ck = cake in 
+let (i1, i2, i3) = divideequal3 (3, ck) in 
+let (i1, i2, i3) = orderedintervals3 (1, i1, i2, i3) in 
+let (a2fav1i1, a2fav1i2, a2fav1i3, a2fav2i1, a2fav2i2, a2fav2i3) = twofav3 (2, i1, i2, i3) in 
+if not a2fav1i1 then 
+    if a2fav1i2 then (piece i1, piece i2, piece i3)
+    else (piece i1, piece i3, piece i2)
+else
+    let m1 = mark (1, read i1, eval (1, read i2)) in 
+    if a2fav2i2 then 
+        let m2 = mark (2, read i1, eval (2, read i2)) in 
+        if not (m2 <= m1) then (* 1 trims more than 2 *)
+            am3doubletrim (1, 2, m1, m2, i1, i2, i3)
+        else
+            let (p2, p1, p3) = am3doubletrim (2, 1, m2, m1, i1, i2, i3) in 
+            (p1, p2, p3)
+    else 
+        let m2 = mark (2, read i1, eval (2, read i3)) in 
+        if not (m2 <= m1) then (* 1 trims more than 2 *)
+            am3doubletrim (1, 2, m1, m2, i1, i3, i2)
+        else 
+            let (p2, p1, p3) = am3doubletrim (2, 1, m2, m1, i1, i2, i3) in 
+            (p1, p2, p3)

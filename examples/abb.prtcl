@@ -1,0 +1,372 @@
+(* This file consists of common Slice program abbreviations *)
+def cc a1 a2 i =
+    let ck = i in
+    let (i1, i2) = divide (ck, markw (a2, read ck , 1 / 2)) in
+    if eval (a1, read i1) >= eval (a1, read i2) then
+        (i1, i2)
+    else
+        (i2, i1)
+
+def trivial3 i =
+    let (i, ignore) = divide (i, markw (1, read i, 0/1)) in
+    let (i, ignore) = divide (i, markw (2, read i, 0/1)) in
+    let (i, ignore) = divide (i, markw (3, read i, 0/1)) in
+    let m = markw (1, read i, 0/1) in
+    let (i1, i) = divide (i, m) in
+    let (i2, i3) = divide (i, m) in
+    (piece i1, piece i2, piece i3)
+
+def trivial4 i =
+    let (i, ignore) = divide (i, markw (1, read i, 0/1)) in
+    let (i, ignore) = divide (i, markw (2, read i, 0/1)) in
+    let (i, ignore) = divide (i, markw (3, read i, 0/1)) in
+    let (i, ignore) = divide (i, markw (4, read i, 0/1)) in
+    let m = markw (1, read i, 0/1) in
+    let (i1, i) = divide (i, m) in
+    let (i2, i) = divide (i, m) in
+    let (i3, i4) = divide (i, m) in
+    (piece i1, piece i2, piece i3, piece i4)
+
+def max2 x1 x2 =
+    if x1 >= x2 then x1 else x2
+
+def max3 x1 x2 x3 =
+    (if x1 >= x2 then
+        (if x1 >= x3 then x1
+        else x3)
+    else (if x2 >= x3 then x2
+        else x3))
+def bestinterval3 agent i1 i2 i3 =
+    let v = max3 ( (eval (agent, piece i1)), (eval (agent, piece i2)), (eval (agent, piece i3))) in
+        if eval (agent, piece i1) = v
+            then (i1)
+            else if eval (agent, i2) = v1
+                then i2
+                else i3
+(* def orderedintervals3 agent i1 i2 i3 =
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    let (max, other, maxv, otherv) = if v1 >= v2 then (i1, i2, v1, v2) else (i2, i1, v2, v1) in
+    if maxv >= v3 then
+        if otherv >= v3 then
+            (max, other, i3)
+        else
+            (max, i3, other)
+    else
+        (i3, max, other) *)
+
+def differentpreferences2 agenta agentb ai1 ai2 ai3 =
+    let (i1, i2, i3) = orderedintervals3 (agenta, ai1, ai2, ai3) in
+        let (i4, i5, i6) = orderedintervals3 (agenta, i1, i2, i3) in
+            if (i4 = i1) then
+                if (eval (agenta, piece i1) = eval (agenta, piece i2)) then
+                    (true, i2, i1, i3)
+                else
+                    if (eval (agentb, piece i4) = eval (agentb, piece i5)) then
+                        (true, i4, i5, i6)
+                    else
+                        (false, i1, i2, i3)
+            else
+                if (i2 = i4) then
+                    (true, i1, i4, i3)
+                else
+                    (true, i1, i4, i2)
+
+def orderedintervals2 agent i1 i2 = (* 7 lines *)
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    if v1 >= v2 then
+        (i1, i2)
+    else
+        (i2, i1)
+
+def favorite3 agent i1 i2 i3 = (* 10 lines *)
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    if v1 >= v2 then
+        if v1 >= v3 then (i1, i2, i3)
+        else (i3, i1, i2)
+    else
+        if v2 >= v3 then (i2, i1, i3)
+        else (i3, i1, i2)
+
+
+(*
+def favorite3 agent i1 i2 i3 = (* No longer works as intended with linear type system *)
+    let (v1, v2, v3) = (eval (agent, read i1), eval (agent, read i2), eval (agent, read i3)) in
+    let (maxv, max, other) = if v1 >= v2 then (v1, i1, i2) else (v2, i2, i1) in
+    let (max, other1, other2) = if maxv >= v3 then (max, other, i3) else (i3, max, other) in
+    (max, other1, other2)
+*)
+
+def onefav3 agent i1 i2 i3 = (* 14 lines *)
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    if v1 >= v2 then
+        if v1 >= v3 then
+            (true, false, false) (* 2 cases *)
+        else
+            (false, false, true) (* 1 case *)
+    else
+        if v2 >= v3 then
+            (false, true, false) (* 2 cases *)
+        else
+            (false, false, true) (* 1 case *)
+
+def lastonefav3 agent i1 i2 i3 =
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    if v1 <= v2 then
+        if v1 <= v3 then
+            (true, false, false) (* 2 cases *)
+        else
+            (false, false, true) (* 1 case *)
+    else
+        if v2 <= v3 then
+            (false, true, false) (* 2 cases *)
+        else
+            (false, false, true) (* 1 case *)
+
+def twofav3 agent i1 i2 i3 = (* 20 lines *)
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    if v1 >= v2 then
+        if v1 >= v3 then
+            if v2 >= v3 then
+                (true, false, false, false, true, false)
+            else
+                (true, false, false, false, false, true)
+        else
+            (false, false, true, true, false, false)
+    else
+        if v2 >= v3 then
+            if v1 >= v3 then
+                (false, true, false, true, false, false)
+            else
+                (false, true, false, false, false, true)
+        else
+            (false, false, true, false, true, false)
+
+def onefav4val agent v1 v2 v3 v4 = (* 23 lines *)
+    if v1 >= v2 then
+        if v1 >= v3 then
+            if v1 >= v4 then
+                (true, false, false, false) (* 6 cases *)
+            else
+                (false, false, false, true) (* 2 cases *)
+        else
+            if v3 >= v4 then
+                (false, false, true, false) (* 3 cases *)
+            else
+                (false, false, false, true) (* 1 case *)
+    else
+        if v2 >= v3 then
+            if v2 >= v4 then
+                (false, true, false, false) (* 6 cases *)
+            else
+                (false, false, false, true) (* 2 cases *)
+        else
+            if v3 >= v4 then
+                (false, false, true, false) (* 3 cases *)
+            else
+                (false, false, false, true) (* 1 case *)
+
+def onefav4 agent i1 i2 i3 i4 =
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    let v4 = eval (agent, read i4) in
+    onefav4val (agent, v1, v2, v3, v4)
+
+
+
+def divideequal3 agent i =
+    let (i1, i') = divide (i, markw (agent, read i, 1 / 3)) in
+    let (i2, i3) = divide (i', markw (agent, read i', 1 / 2)) in
+    (i1, i2, i3)
+
+def divideequal4 agent i =  (* 5 lines *)
+    let (i1, i') = divide (i, markw (agent, read i, 1 / 4)) in
+    let (i2, i'') = divide (i', markw (agent, read i', 1 / 3)) in
+    let (i3, i4) = divide (i'', markw (agent, read i'', 1 / 2)) in
+    (i1, i2, i3, i4)
+def divideequaln3 agent i =
+    let v = eval (agent, piece i) in
+    let (i1, i2) = divide (i, mark (agent, i, v / 3)) in
+    let (i3, i4) = divide (i2, mark (agent,  i, v * (2 / 3))) in
+    (i1, i3, i4)
+
+
+def gettrim3 agent ai1 ai2 ai3 =
+    let (i1, i2, i3) = orderedintervals3 (agent, ai1, ai2, ai3) in
+        let split = mark (agent, i1, (eval (agent, piece i1) - eval (agent, piece i2))) in
+            let (i5, i6) = divide(i1, split) in
+                (i5, i6, i2, i3)
+
+def orderedintervals3 agent i1 i2 i3 = (* 21 lines *)
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+     if v1 >= v2 then
+        if v1 >= v3 then
+            if v2 >= v3 then
+                (i1, i2, i3)
+            else
+                (i1, i3, i2)
+        else
+            (i3, i1, i2)
+
+    else
+        if v1 >= v3 then
+            (i2, i1, i3)
+        else
+            if v2 >= v3 then
+                (i2, i3, i1)
+            else
+                (i3, i2, i1)
+
+
+def orderedintervals4 agent i1 i2 i3 i4 = (* 40 lines *)
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    let v4 = eval (agent, read i4) in
+    if v1 >= v2 then
+        if v1 >= v3 then
+            if v2 >= v3 then
+                if v3 >= v4 then (i1, i2, i3, i4)
+                else if v2 >= v4 then (i1, i2, i4, i3)
+                else if v1 >= v4 then (i1, i4, i2, i3)
+                else (i4, i1, i2, i3)
+            else
+                if v2 >= v4 then (i1, i3, i2, i4)
+                else if v3 >= v4 then (i1, i3, i4, i2)
+                else if v1 >= v4 then (i1, i4, i3, i2)
+                else (i4, i1, i3, i2)
+        else
+            if v2 >= v4 then (i3, i1, i2, i4)
+            else if v1 >= v4 then (i3, i1, i4, i2)
+            else if v3 >= v4 then (i3, i4, i1, i2)
+            else (i4, i3, i1, i2)
+
+    else
+        if v1 >= v3 then
+            if v3 >= v4 then (i2, i1, i3, i4)
+            else if v1 >= v4 then (i2, i1, i4, i3)
+            else if v2 >= v4 then (i2, i4, i1, i3)
+            else (i4, i2, i1, i3)
+        else
+            if v2 >= v3 then
+                if v1 >= v4 then (i2, i3, i1, i4)
+                else if v3 >= v4 then (i2, i3, i4, i1)
+                else if v2 >= v4 then (i2, i4, i3, i1)
+                else (i4, i2, i3, i1)
+            else
+                if v1 >= v4 then (i3, i2, i1, i4)
+                else if v2 >= v4 then (i3, i2, i4, i1)
+                else if v3 >= v4 then (i3, i4, i2, i1)
+                else (i4, i3, i2, i1)
+
+def trimmings3 agent1 agenta agentb i =
+    let (i1, i2, i3) = divideequal3 (agentb, i) in
+    let (i4, i5, i6) = orderedintervals3 ( agenta, i1, i2, i3) in
+    let (i7, i8) = orderedintervals2 ( agent1, i5, i6) in
+    (i7, i4, i8)
+
+def trimmings3wrong agent1 agenta agentb i =
+    let (i1, i2, i3) = divideequal3 (agenta, i) in
+    let (i4, i5, i6) = orderedintervals3 ( agenta, i1, i2, i3) in
+    let (i7, i8) = orderedintervals2 ( agent1, i5, i6) in
+    (i7, i4, i8)
+
+def twofav4 agent i1 i2 i3 i4 = (* 40 lines *)
+    let v1 = eval (agent, read i1) in
+    let v2 = eval (agent, read i2) in
+    let v3 = eval (agent, read i3) in
+    let v4 = eval (agent, read i4) in
+    if v1 >= v2 then
+        if v1 >= v3 then
+            if v2 >= v3 then
+                if v3 >= v4 then (true, false, false, false, false, true, false, false)
+                else if v2 >= v4 then (true, false, false, false, false, true, false, false)
+                else if v1 >= v4 then (true, false, false, false, false, false, false, true)
+                else (false, false, false, true, true, false, false, false)
+            else
+                if v2 >= v4 then (true, false, false, false, false, false, true, false)
+                else if v3 >= v4 then (true, false, false, false, false, false, true, false)
+                else if v1 >= v4 then (true, false, false, false, false, false, false, true)
+                else (false, false, false, true, true, false, false, false)
+        else
+            if v2 >= v4 then (false, false, true, false, true, false, false, false)
+            else if v1 >= v4 then (false, false, true, false, true, false, false, false)
+            else if v3 >= v4 then (false, false, true, false, false, false, false, true)
+            else (false, false, false, true, false, false, true, false)
+    else
+        if v1 >= v3 then
+            if v3 >= v4 then (false, true, false, false ,true, false, false, false)
+            else if v1 >= v4 then (false, true, false, false, true, false, false, false)
+            else if v2 >= v4 then (false, true, false, false, false, false, false, true)
+            else (false, false, false, true, false, true, false, false)
+        else
+            if v2 >= v3 then
+                if v1 >= v4 then (false, true, false, false, false, false, true, false)
+                else if v3 >= v4 then (false, true, false, false, false, false, true, false)
+                else if v2 >= v4 then (false, true, false, false, false, false, false, true)
+                else (false, false, false, true, false, true, false, false)
+            else
+                if v1 >= v4 then (false, false, true, false, false, true, false, false)
+                else if v2 >= v4 then (false, false, true, false, false, true, false, false)
+                else if v3 >= v4 then (false, false, true, false, false, false, false, true)
+                else (false, false, false, true, false, false, true, false)
+
+def am3doubletrim i j mi mj i1 i2 i3 = (* 45 lines *)
+    (* mj <= mi *)
+    let (p11, b1) = divide (i1, mj) in
+    let (gamma1', gamma1) = divide (p11, mi) in
+
+    let (b11, b12, b13) = divideequal3 (3, b1) in
+    let (b11, b12, b13) = orderedintervals3 (i, b11, b12, b13) in
+    let (ajfav1b11, ajfav1b12, ajfav1b13, ajfav2b11, ajfav2b12, ajfav2b13) = twofav3 (j, b11, b12, b13) in
+
+    if not ajfav1b11 then
+        let (b12, b13) = (
+            if ajfav1b12 then (b12, b13)
+            else (b13, b12)
+        ) in
+        (piece (gamma1', gamma1, b11), piece (i2, b12), piece (i3, b13))
+
+    else
+        let bmi = mark (i, read b11, eval (i, read b12)) in
+        let (b12, b13) = (
+            if ajfav2b12 then (b12, b13)
+            else (b13, b12)
+        ) in
+        let bmj = mark (j, read b11, eval (j, read b12)) in
+
+        if bmj <= bmi then
+            let (b11, r) = divide (b11, bmj) in
+            let (b11', b11) = divide (b11, bmi) in
+            let (b12, b13) = (
+                if ajfav2b12 then
+                    (b12, b13)
+                else
+                    (b13, b12) ) in
+            let (ri, rj) = cc (i, j, r) in
+            (piece (gamma1', gamma1, b12, ri), piece (i2, b11', b11, rj), piece (i3, b13))
+        else
+            let (p21, b2) = divide (b11, bmi) in
+            let (gamma2', gamma2) = divide (p21, bmj) in
+            let (ri, rj) = cc (i, j, b2) in
+
+            if (eval (i, read gamma1)) >= (eval (i, read gamma2)) then
+                (* gamma2 preferred less *)
+                (piece (gamma1', gamma1, b12, ri), piece (gamma2', gamma2, i2, rj), piece (i3, b13))
+
+            else
+                (* gamma1 preferred less *)
+                (piece (gamma2', gamma2, i2, ri), piece (gamma1', gamma1, b12, rj), piece (i3, b13))

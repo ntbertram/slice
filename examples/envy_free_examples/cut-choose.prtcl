@@ -1,0 +1,6 @@
+let ck = initialize in
+let (i1, i2) = divide (ck, markw (1, read ck, 1 / 2)) in
+            if ((eval (2, read i2)) >= (eval (2, read i1))) then
+                 (piece i1, piece i2)
+            else
+                (piece i2, piece i1)

@@ -1,0 +1,10 @@
+(* The variable ck cannot be used in divide more than once. The behavior of this protocol is exactly that of surplus *)
+let ck = cake in
+let m1 = markw (1, read ck, 1 / 2) in
+let m2 = markw (2, read ck, 1 / 2) in
+let (i1, i2) = divide (ck, m1) in
+let (i3, i4) = divide (ck, m2) in
+if m1 >= m2 then
+    (piece i2, piece i3)
+else
+    (piece i1, piece i4)

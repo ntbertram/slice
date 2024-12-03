@@ -1,0 +1,21 @@
+let ck = cake in
+let (i1, i2, i3) = divideequal3(1, ck) in
+let (i5, i6, i7) = orderedintervals3(2, i1, i2, i3) in
+if eval (2, read i5) = eval (2, read i6) then
+    let (i8, i9, i10) = orderedintervals3(3, i5, i6, i7) in
+    let (i11, i12) = orderedintervals2( 2, i9, i10) in
+    ((piece i12), (piece i11 ), (piece i8))
+else
+    let split = mark (2, read i5, eval (2, read i6)) in
+    let (i13, i14) = divide(i5, split) in
+    let (i15, i16, i17) = orderedintervals3(3, i13, i6, i7) in
+    if not ((read i15) = (read i13)) then
+        let (i18, i19, i20) = trimmings3 ( 1, 2, 3, i14) in
+        if (read i13) = (read i16) then
+            (piece (i17, i18), piece (i16, i19), piece (i15, i20))
+        else
+            (piece (i16, i18), piece (i17, i19), piece (i15, i20))
+    else
+        let (i21, i22) = orderedintervals2(2, i16, i17) in
+        let (i23, i24, i25) = trimmings3 ( 1, 3, 2, i14) in
+        (piece (i22, i23), piece (i21, i25), piece (i15, i24))

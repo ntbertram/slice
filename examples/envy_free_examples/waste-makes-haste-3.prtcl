@@ -1,0 +1,10 @@
+let ck = initialize in
+let (i1, i2, i3) = divideequal3 (1, ck) in
+let (i1, i2, i3) = orderedintervals3 (2, i1, i2, i3) in
+let v = eval (2, read i2) in
+let m = mark (2, read i1, v) in
+let (trim, ignore) = divide (i1, m) in
+let (i1, i2, i3) = favorite3 (3, trim, i2, i3) in
+(piece i3, piece i2, piece i1)
+
+

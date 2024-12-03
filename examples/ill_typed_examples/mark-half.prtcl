@@ -1,0 +1,3 @@
+(* markw should be supplied "read ck" rather than "ck" *)
+let ck = cake in
+markw (1, ck, 1 / 2)

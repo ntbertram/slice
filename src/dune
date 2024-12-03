@@ -1,0 +1,18 @@
+(library
+ (name cakes)
+ (libraries z3 menhirLib)
+)
+
+(menhir
+ (modules parser)
+ (flags -la 2 --table)
+)
+
+
+(ocamllex
+ (modules lexer)
+)
+
+(env
+  (dev
+    (flags (:standard -warn-error -A))))
