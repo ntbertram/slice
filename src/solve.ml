@@ -10,7 +10,6 @@ open Expression_to_formula
 open Properties
 open Ast
 open Main
-open Types
 
 (*
 (* Solving with z3 *)
@@ -51,17 +50,7 @@ let solve_from_file_solver solver prop dl s =
    Solver.to_string solver *)
 
 let produce_smt_file red prop (e : expression) =
-  let t = typ_of_exp [] e in
-  let n =
-    match t with
-    | Lin (Tup tlist) -> List.length tlist
-    | _ -> failwith "cannot determine number of agents based off of type"
-  in
-  let f = if red then
-      check_property e (prop n)
-  else 
-      check_property_no_red e (prop n)
-  in
+  let f = verification red e prop in
   let smt = f_to_smt f in
   let solver = Solver.mk_solver ctx None in
   Solver.add solver [ smt ];
@@ -71,17 +60,7 @@ let produce_smt_file red prop (e : expression) =
 
 
 let solve_in_place red prop e =
-  let t = typ_of_exp [] e in
-  let n =
-    match t with
-    | Lin (Tup tlist) -> List.length tlist
-    | _ -> failwith "cannot determine number of agents based off of type"
-  in
-  let f = if red then
-      check_property e (prop n)
-  else 
-      check_property_no_red e (prop n)
-  in
+  let f = verification red e prop in
   let smt = f_to_smt f in
   let solver = Solver.mk_solver ctx None in
   Solver.add solver [ smt ];
@@ -90,8 +69,8 @@ let solve_in_place red prop e =
   | UNSATISFIABLE -> print_endline "unsat"
   | UNKNOWN -> print_endline "unknown"
 
-let solve_individual_path n p =
-  let f = build_path_formula_with_f p (envy_any n) in
+let solve_individual_path red p =
+  let f = build_path_formula red p envy_any in
   let smt = f_to_smt f in
   let solver = Solver.mk_solver ctx None in
   Solver.add solver [ smt ];
@@ -101,7 +80,7 @@ let solve_individual_path n p =
   | UNKNOWN -> true
 
 (** Given an expression, this functions should test if every branch is satisfiable. *)
-let solve_expression (n : int) (e : expression) (delta : int) =
+let solve_expression (red : bool) (e : expression) (delta : int) =
   let count = ref 0 in
   let pre_path_seq = expression_to_pre_path_seq e in
   let path_seq = pre_path_to_path_seq pre_path_seq in
@@ -112,7 +91,7 @@ let solve_expression (n : int) (e : expression) (delta : int) =
     else
       match s with
       | Nil -> acc
-      | Cons (h, t) -> helper (acc || solve_individual_path n h) (t ())
+      | Cons (h, t) -> helper (acc || solve_individual_path red h) (t ())
   in
   if helper false path_seq then "sat" else "unsat"
 
@@ -124,13 +103,7 @@ let formula_to_file f n =
   string_to_file s ("solve" ^ string_of_int n ^ ".smt2")
 
 (* creates an smt2 file for every 200,000 paths *)
-let large_envy_free_smt (e : expression) =
-  let t = typ_of_exp [] e in
-  let n =
-    match t with
-    | Lin (Tup tlist) -> List.length tlist
-    | _ -> failwith "cannot determine number of agents based off of type"
-  in
+let large_envy_free_smt (e : expression) prop =
   let count = ref 0 in
   let curr_file_num = ref 0 in
   let pre_path_seq = expression_to_pre_path_seq e in
@@ -166,7 +139,7 @@ let large_envy_free_smt (e : expression) =
           formula_to_file (Or acc) !curr_file_num;
           print_endline ("Done with file " ^ string_of_int !curr_file_num)
       | Cons (h, t) ->
-          let f = build_path_formula_with_f h (envy_any n) in
+          let f = build_path_formula true h prop in
           helper (f :: acc) (t ())
   in
   helper [] path_seq
@@ -176,13 +149,6 @@ let large_envy_free_smt (e : expression) =
     let smt = f_to_smt f in
     let solver = Solver.mk_solver ctx None in
     Solver.add solver [smt] ; (Solver.to_string solver) *)
-
-let get_solve_from_file e (*prop*) _ (*dl*) _ (*s*) _ =
-  let f = new_and [ Neg (complete_real_constraint e) ] in
-  let smt = f_to_smt f in
-  let solver = Solver.mk_solver ctx None in
-  Solver.add solver [ smt ];
-  Solver.to_string solver
 
 let gen_solver smt =
   let solver = Solver.mk_solver ctx None in
@@ -194,7 +160,7 @@ let gen_solver smt =
 let path_solver_from_file e =
   let paths = expression_to_path_list e in
   let complete_formulas =
-    map (fun p -> build_path_formula_with_f p (envy_any 2)) paths
+    map (fun p -> build_path_formula true p envy_any) paths
   in
   let smts = map and_to_sep complete_formulas in
   map gen_solver smts

@@ -16,8 +16,9 @@ val form_piece : vinterval list -> piece
 
 type mark_order = mark list
 
-val suffix : 'a -> 'a list -> 'a list
-val prefix : 'a -> 'a list -> 'a list
+val refine : mark_order -> interval list -> interval list
+val atomic_interval_representation : mark_order -> interval -> interval list
+val atomic_piece_representation : mark_order -> interval list -> interval list
 
 val sort_piece : mark_order -> interval list -> interval list
 val contained_in : mark_order -> interval -> interval -> bool

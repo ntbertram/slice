@@ -44,21 +44,88 @@ let form_piece (lst : vinterval list) : piece =
 type mark_order = mark list
 
 (* Assumes that both marks are contained in the ordering *)
-let lte (o : mark_order) (m : mark) (m' : mark) =
+let compare_m (o : mark_order) (m : mark) (m' : mark) =
   let rec helper o m m' =
     match o with
     | mo :: o' -> (
         match (mo = m, mo = m') with
-        | true, true -> true (* m = m' *)
-        | true, false -> true (* m < m' *)
-        | false, true -> false (* m' < m *)
+        | true, true -> 0 (* m = m' *)
+        | true, false -> -1 (* m < m' *)
+        | false, true -> 1 (* m' < m *)
         | false, false -> helper o' m m' (* Not sure yet *))
     | [] -> failwith "Neither mark is found within the ordering"
   in
   helper o m m'
 
+let leq_m o m m' = 
+    match compare_m o m m' with
+    | -1 -> true
+    | 1 -> false
+    | 0 -> true
+    | _ -> failwith "Illegal comparison. Should never occur."
+
+  (* Compares the left endpoints of intervals. If equal, compares right endpoints. *)
+let compare_i o i i' = 
+    let res = compare_m o i.l i'.l in
+    if res = 0 then
+        compare_m o i.r i'.r 
+    else
+        res
+
+let new_sort_piece o p = List.stable_sort (compare_i o) p
+
+let max_m o m m' = if leq_m o m m' then m' else m
+
+(* This combines overlapping pieces for a "normal form" representation of a piece *)
+let refine o p = 
+    (* Need to sort by left endpoint *)
+    let p = new_sort_piece o p in
+    let rec merge i p =
+        match p with
+        | i' :: p' -> 
+                (* i and i' overlap *)
+                if leq_m o i'.l i.r then
+                    merge {l = i.l; r = (max_m o i.r i'.r)} (p')
+                else 
+                    (i, p)
+        | [] -> (i, [])
+    in
+    let rec h p = 
+        match p with
+        | i :: p' -> 
+                let i, p' = merge i p' in
+                i :: (h p')
+        | [] -> []
+    in
+    h p
+
+
+let atomic_interval_representation o i =
+    let rec h o i = 
+        match o with
+        | m :: m' :: o' -> 
+                begin
+                match m = i.l, m' = i.r with
+                | true, false ->
+                    {l = m; r = m'} :: (h (m' :: o') {l = m'; r = i.r})
+                | true, true -> [i]
+                | false, false -> h (m' :: o') i
+                | false, true -> failwith "Should not occur! Interval is imcompatible with mark ordering!"
+                end
+        | _ :: [] -> []
+        | [] -> failwith "Mark order supplied is empty!"
+    in h o i
+
+
+    (* Assumes piece is refined *)
+let atomic_piece_representation o p = List.fold_left (fun acc i -> acc @ (atomic_interval_representation o i)) [] p
+
+
+
+
+
 let compare o i i' =
-  match (lte o i.l i'.l, lte o i'.l i.l) with
+  match (leq_m o i.l i'.l, leq_m o i'.l i.l) with
   | true, true -> 0
   | true, false -> -1
   | false, true -> 1
@@ -68,11 +135,11 @@ let sort_piece o p = List.stable_sort (compare o) p
 
 (* Intervals are assumed to be well-formed *)
 let contained_in (o : mark_order) (i : interval) (i' : interval) =
-  let lte = lte o in
+  let lte = leq_m o in
   lte i'.l i.l && lte i.r i'.r
 
 let mark_inside (o : mark_order) (m : mark) (i : interval) =
-  let lte = lte o in
+  let lte = leq_m o in
   lte i.l m && lte m i.r
 
 let tot_piece = [ { l = L; r = R } ]
@@ -259,3 +326,35 @@ let rec mark_order_formatter f o =
       kwd f " ≤ ";
       mark_order_formatter f o'
   | [] -> ()
+
+
+
+
+
+(* Test cases *)
+
+
+let o_test = [L ; U 1; U 2; U 3; R] 
+
+let i1_test = {l = L; r = U 2}
+let i2_test = {l = U 1; r = U 3}
+
+let p_test = [i1_test ; i2_test]
+
+let refined_p_test = refine o_test p_test
+
+let atomic_i1_test = atomic_interval_representation o_test i1_test
+let atomic_i2_test = atomic_interval_representation o_test i2_test
+
+let atomic_p_test = atomic_piece_representation o_test refined_p_test
+
+let p2_test = atomic_i1_test @ atomic_i2_test
+let refined_p2_test = refine o_test p2_test
+
+let atomic_p2_test = atomic_piece_representation o_test refined_p2_test
+
+let _ = assert (refined_p_test = [{l = L; r = U 3}])
+let _ = assert (atomic_i1_test = [{l = L; r = U 1}; {l = U 1; r = U 2}])
+let _ = assert (atomic_i2_test = [{l = U 1; r = U 2}; {l = U 2; r = U 3}])
+let _ = assert (refined_p2_test = refined_p_test)
+let _ = assert (atomic_p2_test = atomic_p_test)

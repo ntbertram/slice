@@ -17,6 +17,7 @@ let zero : term = Val (Real (0, None))
 let one : term = Val (Real (1, None))
 let cake_piece = Piece [ Interval (Pt (M (Cake, L)), Pt (M (Cake, R))) ]
 
+(* Converting between objects and their terms *)
 let rec interval_term_to_interval t =
   match t with
   | Interval (t1, t2) ->
@@ -53,71 +54,36 @@ and interval_to_term (i : vinterval) =
   in
   Interval (l, r)
 
+  (* Left endpoint associated with given agent *)
 let agent_pt_t n (pt : point) = Pt (P (n, (lvl_to_term pt.lvl, pt.pt)))
-
-(*Needs a bit of work *)
-(*
-let contained (p1 : piece) (p2 : piece) =
-    List.filter (fun i -> List.exists (fun i' -> i = i') p2) p1
-*)
 
 let rec sum term_list : term =
   match term_list with [] -> zero | h :: [] -> h | h :: t -> plus h (sum t)
 
 let ( -- ) a b = Minus (a, b)
 
-let points_in_interval o i =
-  if i.l = i.r then [] else (o |> prefix i.r |> suffix i.l) @ [ i.r ]
+let atomic_interval_pu_value n vi = 
+    let m = point_to_term {lvl = vi.lvl; pt = vi.i.r} in
+    let lm = agent_pt_t n {lvl = vi.lvl; pt = vi.i.r} in
+    m -- lm
 
-let rec integrate (curr : mark list) mlist =
-  let contains m' =
-    List.fold_left (fun b m -> if m = m' then true else b) false
-  in
-  match mlist with
-  | m :: mlist' ->
-      if contains m curr then integrate curr mlist'
-      else integrate (m :: curr) mlist'
-  | [] -> curr
+let atomic_piece_value (red : bool) n (os : (level * mark_order) list) (pc : piece) =
+    let o =
+        match List.assoc_opt pc.lvl os with Some o -> o | None -> [ L; R ]
+    in
+    pc.lst 
+    |> refine o
+    |> (atomic_piece_representation o)
+    |> List.map (fun i -> {lvl = pc.lvl; i = i})
+    |> 
+    begin 
+        if red then 
+            (List.map (atomic_interval_pu_value n)) 
+        else 
+            (List.map (fun vi -> V (n, (interval_to_term vi))))
+    end
+    |> sum
 
-(* Get the value of a piece p of type p' *)
-let value_piece n (os : (level * mark_order) list) (pc : piece) =
-  let o =
-    match List.assoc_opt pc.lvl os with Some o -> o | None -> [ L; R ]
-  in
-  let points =
-    List.fold_left
-      (fun curr i -> integrate curr (points_in_interval o i))
-      [] pc.lst
-  in
-  let mt m = point_to_term { lvl = pc.lvl; pt = m } in
-  let mpt m = agent_pt_t n { lvl = pc.lvl; pt = m } in
-  sum (List.map (fun m -> mt m -- mpt m) points)
-
-let value_piece_no_red n (os : (level * mark_order) list) (pc : piece) =
-  let o =
-    match List.assoc_opt pc.lvl os with Some o -> o | None -> [ L; R ]
-  in
-  let points =
-    List.fold_left
-      (fun curr i -> integrate curr (points_in_interval o i))
-      [] pc.lst
-  in
-  let mt m = point_to_term { lvl = pc.lvl; pt = m } in
-  let rec get_left left m o =
-    match o with
-    | m' :: o' -> if m = m' then left else get_left m' m o'
-    | [] -> failwith "Mark not contained within mark order"
-  in
-  let leftmt m =
-    let ml = get_left L m o in
-    point_to_term { lvl = pc.lvl; pt = ml }
-  in
-  sum (List.map (fun m -> V (n, Interval (leftmt m, mt m))) points)
-
-(*List.map (interval_value n pc.lvl o) pc.lst *)
-
-(* Obtain the value of the interval that you have *)
-let interval_value n lvl o i = value_piece n [ (lvl, o) ] { lvl; lst = [ i ] }
 
 (* Converts function symbol riddled formulas to just those containing real numbers, free variables, and valuation function symbols *)
 let rec real_replacement t =
@@ -205,60 +171,23 @@ and term_replacement t =
   | Piece -> piece_replacement t
   | _ -> failwith "Not supposed to happen."
 
-(* Produces substring of l that starts with a and ending with b, not including a *)
-let substring l a b =
-  let rec post_substring l b =
-    match l with
-    | h :: t -> if h = b then [ b ] else h :: post_substring t b
-    | [] -> []
-  in
-  let rec pre_substring l a b =
-    match l with
-    | h :: t -> if h = a then post_substring t b else pre_substring t a b
-    | [] -> []
-  in
-  pre_substring l a b
 
-let rec replace_vals o t =
+let rec replace_vals red o t =
   match t with
   | Val (Real _) -> t
   | Pt _ -> t
-  | Minus (t1, t2) -> Minus (replace_vals o t1, replace_vals o t2)
-  | Op (A op, [ t1; t2 ]) -> Op (A op, [ replace_vals o t1; replace_vals o t2 ])
-  | V (n, t) -> t |> piece_term_to_piece |> value_piece n o
+  | Minus (t1, t2) -> Minus (replace_vals red o t1, replace_vals red o t2)
+  | Op (A op, [ t1; t2 ]) -> Op (A op, [ replace_vals red o t1; replace_vals red o t2 ])
+  | V (n, t) -> t |> piece_term_to_piece |> atomic_piece_value red n o
   | _ ->
       failwith
         (p "There should be no additional cases here. Recieved %s."
            (term_to_str t))
 
-let replace_vals_formula m_ordered f =
-  f_formula (fun x -> x) (replace_vals m_ordered) f
+let replace_vals_formula red m_ordered f =
+  f_formula (fun x -> x) (replace_vals red m_ordered) f
 
-let rec replace_vals_no_red o t =
-  match t with
-  | Val (Real _) -> t
-  | Pt _ -> t
-  | Minus (t1, t2) -> Minus (replace_vals_no_red o t1, replace_vals_no_red o t2)
-  | Op (A op, [ t1; t2 ]) ->
-      Op (A op, [ replace_vals_no_red o t1; replace_vals_no_red o t2 ])
-  | V (n, t) -> (
-      match sort_of_term t with
-      | Piece -> t |> piece_term_to_piece |> value_piece_no_red n o
-      | Interval -> t
-      | s ->
-          failwith
-            (p
-               "Sort mismatch. V expexts sorts piece or interval. Received \
-                sort %s."
-               (sort_to_str s)))
-  | _ ->
-      failwith
-        (p "There should be no additional cases here. Recieved %s."
-           (term_to_str t))
-
-let replace_vals_formula_no_red m_ordered f =
-  f_formula (fun x -> x) (replace_vals_no_red m_ordered) f
-
+  (* Formula simplification (Removes redundant symbols and converts boolean terms to formulas) *)
 let rec formula_substitute f =
   match f with
   | True -> True
@@ -308,11 +237,9 @@ let rec build_agent_valuation n lvl prev (o : mark list) =
       let mpt, mt = (agent_pt_t n pt, point_to_term pt) in
       leq mpt mt :: leq prev mpt :: f mt o'
   | _ -> failwith (p "Woops! Not supposed to happen.")
-(*(term_to_str (hd m_list)) (term_to_str (hd (tl m_list))))*)
 
 (* Building the ordering on the marks *)
 let rec divide_formula_substitute divides =
-  (* let f t = real_term_to_point (real_replacement t) in *)
   match divides with
   | (t1, t2, t3) :: t -> (t1, t2, t3) :: divide_formula_substitute t
   | [] -> []
@@ -364,8 +291,6 @@ let rec subs_divides l t_new d_list =
       :: subs_divides l t_new t
   | [] -> []
 
-let ( >> ) f g x = g (f x)
-let ( << ) f g x = f (g x)
 
 (* Produces the constraint of an expression *)
 let rec cnstr ((e : path), (env : (int list * term) list)) k divides =
@@ -482,7 +407,6 @@ let rec cnstr ((e : path), (env : (int list * term) list)) k divides =
       (True, interval_to_term { lvl = Cake; i = { l = L; r = R } }, k, divides)
   | Val v -> (True, Val v, k, divides)
   | Var l ->
-      (*let rho = Var (l, typ_of_exp env (Var l)) in*)
       let rho = List.assoc (var_id l) env in
       (True, rho, k, divides)
 
@@ -501,12 +425,14 @@ let ( >= ) a b = geq a b
 let ( <= ) a b = leq a b
 let ( == ) a b = eq a b
 
+(* Gives the constraint on the value of the cake at a smaller level *)
 let value_piece_constraint n (lvl : level) o =
   let v pc = V (n, piece_to_term pc) in
   match lvl with
   | Cake -> True
-  | Sq pc -> v pc == interval_value n lvl o { l = L; r = R }
+  | Sq pc -> v pc == atomic_piece_value true n [(lvl, o)] {lvl = lvl; lst = [{l = L; r = R}]}
 
+(* *)
 let all_value_piece_constraints os agent_list =
   let g n (lvl, o) = value_piece_constraint n lvl o in
   let f n = new_and (List.map (g n) os) in
@@ -514,62 +440,8 @@ let all_value_piece_constraints os agent_list =
 
 let closed_cnstr e = cnstr (e, []) 0 []
 
-(*Combining into one formula *)
-let build_path_formula_with_f (e : path) f =
-  let c, rho, _, divides = closed_cnstr e in
-  let mark_orders =
-    List.map (fun (lvl, l) -> (lvl, order_marks l)) (assoc_list_factor divides)
-  in
-  let agent_count =
-    match sort_of_term rho with Tup l -> length l | _ -> failwith "Not sure"
-  in
-  let agent_list = List.tl (List.init (agent_count + 1) (fun i -> i)) in
-  let agent_val_formula lvl order n = build_agent_valuation n lvl zero order in
-  let agent_valuations =
-    concat
-      (List.map
-         (fun (lvl, order) ->
-           concat (map (agent_val_formula lvl order) agent_list))
-         mark_orders)
-  in
-  let value_constraints = all_value_piece_constraints mark_orders agent_list in
-  let real_c = replace_vals_formula mark_orders (formula_substitute c) in
-  let real_f = replace_vals_formula mark_orders (formula_substitute (f rho)) in
-  let real_vc = replace_vals_formula mark_orders value_constraints in
-  new_and (real_f :: real_c :: real_vc :: agent_valuations)
 
-(* The following are irrelevent to artifact *)
-let build_path_formula_vc (e : path) =
-  let _, rho, _, divides = closed_cnstr e in
-  let mark_orders =
-    List.map (fun (lvl, l) -> (lvl, order_marks l)) (assoc_list_factor divides)
-  in
-  let agent_count =
-    match sort_of_term rho with Tup l -> length l | _ -> failwith "Not sure"
-  in
-  let agent_list = List.tl (List.init (agent_count + 1) (fun i -> i)) in
-  let value_constraints = all_value_piece_constraints mark_orders agent_list in
-  new_and [ replace_vals_formula mark_orders value_constraints ]
-
-let check_vc e =
-  let path_list = expression_to_path_list e in
-  let path_formula_list = map (fun p -> build_path_formula_vc p) path_list in
-  Or path_formula_list
-
-let build_path_formula e = build_path_formula_with_f e (fun _ -> True)
-
-let complete_real_constraint (e : expression) =
-  let path_list = expression_to_path_list e in
-  let path_formula_list = map (fun p -> build_path_formula p) path_list in
-  Or path_formula_list
-
-let check_property e f =
-  let path_list = expression_to_path_list e in
-  let path_formula_list =
-    map (fun p -> build_path_formula_with_f p f) path_list
-  in
-  Or path_formula_list
-
+(* Gives the mark orderings as formulas *)
 let mark_orders_formula ol =
   let rec mark_order_formula o =
     match o with
@@ -584,7 +456,9 @@ let mark_orders_formula ol =
          |> new_and)
        ol)
 
-let build_path_formula_with_f_no_red (e : path) f =
+
+(*Combining into one formula *)
+let build_path_formula (red : bool) (e : path) prop =
   let c, rho, _, divides = closed_cnstr e in
   let mark_orders =
     List.map (fun (lvl, l) -> (lvl, order_marks l)) (assoc_list_factor divides)
@@ -592,39 +466,44 @@ let build_path_formula_with_f_no_red (e : path) f =
   let agent_count =
     match sort_of_term rho with Tup l -> length l | _ -> failwith "Not sure"
   in
-  (*let agent_list = List.init agent_count (fun i -> i + 1) in
-    let agent_val_formula lvl order n = build_agent_valuation n lvl zero order in*)
-  (*let agent_valuations =
-      concat
-        (List.map
-           (fun (lvl, order) ->
-             concat (map (agent_val_formula lvl order) agent_list))
-           mark_orders)
-    in*)
-  let c = replace_vals_formula_no_red mark_orders (formula_substitute c) in
-  let f =
-    replace_vals_formula_no_red mark_orders (formula_substitute (f rho))
+  let simplified_constraint =
+      c |> formula_substitute |> replace_vals_formula red mark_orders
   in
-  let mark_order_formula = mark_orders_formula mark_orders in
-  let val_assumptions =
-    new_and (List.map assumption_n (List.init agent_count (fun i -> i + 1)))
+  let simplified_property =
+      prop agent_count rho |> formula_substitute |> replace_vals_formula red mark_orders
   in
-  new_and [ mark_order_formula; f; c; val_assumptions ]
+  let specific_assumptions = 
+        if red then
+          let agent_list = List.tl (List.init (agent_count + 1) (fun i -> i)) in
+          let agent_val_formula lvl order n = build_agent_valuation n lvl zero order in
+          let agent_valuations =
+            concat
+              (List.map
+                 (fun (lvl, order) ->
+                   concat (map (agent_val_formula lvl order) agent_list))
+                 mark_orders)
+          in
+          let value_constraints = all_value_piece_constraints mark_orders agent_list in
+          let simplified_value_constraints = 
+              value_constraints |> replace_vals_formula red mark_orders
+          in
+          new_and (simplified_value_constraints :: agent_valuations)
+      else
+          let mark_order_formula = mark_orders_formula mark_orders in
+          let general_valuation_assumptions =
+            new_and (List.map assumption_n (List.init agent_count (fun i -> i + 1)))
+          in
+          new_and [mark_order_formula; general_valuation_assumptions]
+  in new_and [specific_assumptions; simplified_property; simplified_constraint]
 
-let check_property_no_red e f =
+let verification red e prop =
   let path_list = expression_to_path_list e in
   let path_formula_list =
-    map (fun p -> build_path_formula_with_f_no_red p f) path_list
+    map (fun p -> build_path_formula red p prop) path_list
   in
-  let f = Or path_formula_list in f
-(*
-let build_formula dl file_name =
-    let e = build_expression dl file_name in
-    let (f, t) = qsr_to_formula_v (e_to_qsr [] [] ([], e)) in
-    ((pre_foe_to_foe [] f), t)
-*)
-(*
-let constraint_to_file file_name c =
-    let out = open_out file_name in
-    output_string out (foe_to_str c) ; flush out
-*)
+  Or path_formula_list
+
+
+let output_formula_to_file file_name f =
+    let fmt = file_name |> open_out |> Format.formatter_of_out_channel in
+    formula_formatter fmt f

@@ -39,6 +39,6 @@ let () =
     | "envy_no_red" -> produce_smt_file false (envy_any) e
     | "paths" -> print_num_paths e
     | "no_prop" -> produce_smt_file true (no_prop) e
-    | "large" -> large_envy_free_smt e
+    | "large" -> large_envy_free_smt e envy_any
     | _ -> failwith "improper argument"
   with _ -> ()
